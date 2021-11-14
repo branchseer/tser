@@ -1,9 +1,8 @@
+mod lit;
+
+#[derive(Default)]
 pub enum BasicType {
     String,
-}
-
-enum Type {
-
 }
 
 pub enum ModuleItem {
@@ -22,6 +21,33 @@ mod tests {
     use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax, TsConfig};
 
     #[test]
+    fn hello_serde() {
+        use serde::{Serialize, Deserialize};
+
+        #[derive(Debug, Serialize, Deserialize)]
+        #[serde(tag="type", rename="1")]
+        struct MyStruct1 {
+            a: String
+        }
+        #[derive(Debug, Serialize, Deserialize)]
+        #[serde(tag="type", rename="2")]
+        struct MyStruct2 {
+            a: String
+        }
+
+        #[derive(Debug, Serialize, Deserialize)]
+        #[serde(untagged)]
+        enum SumType {
+            M1(MyStruct1),
+            M2(MyStruct2)
+        }
+
+
+        println!("{:?}", serde_json::from_str::<SumType>(r#"{ "type": "2", "a": "aa" }"#));
+    }
+    
+
+    #[test]
     fn it_works() {
         let cm: Lrc<SourceMap> = Default::default();
 
@@ -37,7 +63,7 @@ mod tests {
         let module = parser.parse_module().unwrap();
 
         for item in module.body {
-            match item {
+            match &item {
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, .. })) => {
                     match decl {
                         Decl::Class(_) => {}
