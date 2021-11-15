@@ -1,6 +1,5 @@
-mod lit;
+mod constant;
 
-#[derive(Default)]
 pub enum BasicType {
     String,
 }
@@ -11,6 +10,12 @@ pub enum ModuleItem {
 
 pub struct Module {
     items: Vec<ModuleItem>,
+}
+
+const CRATE_NAME: &str = std::module_path!();
+
+pub fn module_path() -> &'static str {
+    std::module_path!()
 }
 
 #[cfg(test)]
@@ -49,6 +54,7 @@ mod tests {
 
     #[test]
     fn it_works() {
+        println!("{:?}", crate::CRATE_NAME);
         let cm: Lrc<SourceMap> = Default::default();
 
         let fm = cm.new_source_file(
