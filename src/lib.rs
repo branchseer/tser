@@ -1,7 +1,13 @@
-mod constant;
+mod lit;
 
 pub enum BasicType {
     String,
+}
+
+enum Lit {
+    String(String),
+    Number(f64),
+    Boolean(bool)
 }
 
 pub enum ModuleItem {
@@ -12,11 +18,7 @@ pub struct Module {
     items: Vec<ModuleItem>,
 }
 
-const CRATE_NAME: &str = std::module_path!();
-
-pub fn module_path() -> &'static str {
-    std::module_path!()
-}
+pub(crate) const CRATE_NAME: &str = env!("CARGO_CRATE_NAME");
 
 #[cfg(test)]
 mod tests {
@@ -59,7 +61,7 @@ mod tests {
 
         let fm = cm.new_source_file(
             FileName::Custom("[tser-input].ts".into()),
-            "export interface Hello { world: string } namespace Ahaha {}".into(),
+            "export const xyz = 1, v = false; export const abc = 1.2;".into(),
         );
         let mut parser = Parser::new(
             Syntax::Typescript(TsConfig::default()),

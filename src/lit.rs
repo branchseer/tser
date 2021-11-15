@@ -3,7 +3,7 @@ use serde::{Deserialize, Deserializer};
 use std::borrow::Borrow;
 
 #[doc(hidden)]
-pub fn deserialize_const<'de, D, T, S>(deserializer: D, expected_val: &T) -> Result<S, D::Error>
+pub fn deserialize_lit<'de, D, T, S>(deserializer: D, expected_val: &T) -> Result<S, D::Error>
 where
     S: Default,
     D: Deserializer<'de>,
@@ -24,10 +24,10 @@ where
 }
 
 #[macro_export]
-macro_rules! impl_const {
+macro_rules! serde_lit {
     ($type_name: ident, $const_type: ty, $const_val: literal) => {
         #[derive(
-            ::std::cmp::Eq, ::std::cmp::PartialEq, ::std::default::Default, ::std::hash::Hash,
+            ::std::cmp::Eq, ::std::cmp::PartialEq, ::std::default::Default,
         )]
         pub struct $type_name(());
 
@@ -59,7 +59,7 @@ macro_rules! impl_const {
                 D: ::serde::de::Deserializer<'de>,
             {
                 use ::std::borrow::Borrow;
-                $crate::constant::deserialize_const(deserializer, Self::value().borrow())
+                $crate::lit::deserialize_lit(deserializer, Self::value().borrow())
             }
         }
         impl $type_name {
@@ -72,12 +72,12 @@ macro_rules! impl_const {
 
 #[cfg(test)]
 mod tests {
-    use crate::impl_const;
+    use crate::serde_lit;
     use serde_test::{assert_de_tokens_error, assert_tokens, Token};
 
-    impl_const!(StrHello, &'static str, "hello");
-    impl_const!(Answer, i64, 42);
-    impl_const!(False, bool, false);
+    serde_lit!(StrHello, &'static str, "hello");
+    serde_lit!(Answer, i64, 42);
+    serde_lit!(False, bool, false);
 
     #[test]
     fn test_str() {
