@@ -2,6 +2,10 @@ use serde::de::Error;
 use serde::{Deserialize, Deserializer};
 use std::borrow::Borrow;
 
+struct Hello<'a> {
+    a: Result<&'a str, &'a i64>
+}
+
 #[doc(hidden)]
 pub fn deserialize_lit<'de, D, T, S>(deserializer: D, expected_val: &T) -> Result<S, D::Error>
 where
@@ -98,5 +102,42 @@ mod tests {
         assert_eq!(STR_VAL, "hello");
         assert_eq!(Answer::value(), 42_i64);
         assert_eq!(False::value(), false);
+    }
+
+    #[test]
+    fn test_lit_as_tag() {
+        use serde::{Deserialize, Serialize};
+        serde_lit!(Tag1, &'static str, "tag1");
+        serde_lit!(Tag2, &'static str, "tag2");
+
+        #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
+        struct MyStruct1 {
+            tag: Tag1,
+            field: u32
+        }
+        #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
+        struct MyStruct2 {
+            tag: Tag2,
+            field: u32
+        }
+
+        #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
+        #[serde(untagged)]
+        enum MyStructUnion {
+            MyStruct1(MyStruct1),
+            MyStruct2(MyStruct2),
+        }
+
+        assert_tokens(&MyStructUnion::MyStruct2(MyStruct2 {
+            tag: Default::default(),
+            field: 42
+        }), &[
+            Token::Struct { name: "MyStruct2", len: 2 },
+                Token::Str("tag"),
+                Token::Str("tag2"),
+                Token::Str("field"),
+                Token::U32(42),
+                Token::StructEnd,
+        ])
     }
 }
