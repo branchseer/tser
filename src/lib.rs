@@ -1,17 +1,37 @@
 mod lit;
 
-pub enum BasicType {
+enum BasicType {
     String,
+    Number,
+    Boolean,
+    Null,
+    Undefined
+}
+
+struct TypeRef {
+    module_path: Vec<String>,
+    type_name: String,
+}
+
+enum Type {
+    Type(BasicType),
+    Lit(Lit),
+    Ref(TypeRef),
+    Enum(Vec<Type>),
+    Tuple(Vec<Type>)
 }
 
 enum Lit {
     String(String),
     Number(f64),
-    Boolean(bool)
+    Boolean(bool),
+    Nullish, // null or undefined, we don't distinguish them
 }
 
-pub enum ModuleItem {
+enum ModuleItem {
     Submodule { name: String, module: Module },
+    ConstValue { name: String, value: Lit },
+    Type { name: String, ty: Type }
 }
 
 pub struct Module {
@@ -28,40 +48,13 @@ mod tests {
     use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax, TsConfig};
 
     #[test]
-    fn hello_serde() {
-        use serde::{Serialize, Deserialize};
-
-        #[derive(Debug, Serialize, Deserialize)]
-        #[serde(tag="type", rename="1")]
-        struct MyStruct1 {
-            a: String
-        }
-        #[derive(Debug, Serialize, Deserialize)]
-        #[serde(tag="type", rename="2")]
-        struct MyStruct2 {
-            a: String
-        }
-
-        #[derive(Debug, Serialize, Deserialize)]
-        #[serde(untagged)]
-        enum SumType {
-            M1(MyStruct1),
-            M2(MyStruct2)
-        }
-
-
-        println!("{:?}", serde_json::from_str::<SumType>(r#"{ "type": "2", "a": "aa" }"#));
-    }
-    
-
-    #[test]
     fn it_works() {
         println!("{:?}", crate::CRATE_NAME);
         let cm: Lrc<SourceMap> = Default::default();
 
         let fm = cm.new_source_file(
             FileName::Custom("[tser-input].ts".into()),
-            "export const xyz = 1, v = false; export const abc = 1.2;".into(),
+            "namespace X { export interface A {} } ; export type B = X.Y.A;".into(),
         );
         let mut parser = Parser::new(
             Syntax::Typescript(TsConfig::default()),
