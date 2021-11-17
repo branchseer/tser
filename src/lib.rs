@@ -1,5 +1,9 @@
 mod lit;
 
+use indexmap::IndexMap;
+use swc_ecma_ast::ModuleItem as SwcModuleItem;
+
+#[derive(Debug)]
 enum BasicType {
     String,
     Number,
@@ -8,34 +12,63 @@ enum BasicType {
     Undefined
 }
 
+#[derive(Debug)]
 struct TypeRef {
     module_path: Vec<String>,
     type_name: String,
 }
 
-enum Type {
+#[derive(Debug)]
+enum EnumType {
+    Strings(IndexMap<String, String>),
+    Numbers(IndexMap<String, isize>),
+}
+
+#[derive(Debug)]
+enum NonNullType {
     Basic(BasicType),
     Lit(Lit),
     Ref(TypeRef),
     Union(Vec<Type>),
     Tuple(Vec<Type>),
+    Enum(EnumType)
 }
 
+#[derive(Debug)]
+enum Type {
+    NonNull(NonNullType),
+    Nullish // null or undefined
+}
+
+#[derive(Debug)]
 enum Lit {
     String(String),
     Number(f64),
     Boolean(bool),
-    Nullish, // null or undefined, we don't distinguish them
 }
 
+#[derive(Debug)]
 enum ModuleItem {
     Submodule { name: String, module: Module },
     ConstValue { name: String, value: Lit },
     Type { name: String, ty: Type }
 }
 
+#[derive(Debug)]
 pub struct Module {
     items: Vec<ModuleItem>,
+}
+
+pub enum Error {
+    StructureNotSupported(swc_common::Span)
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
+
+fn parse_ts_module_item(swc_module_item: SwcModuleItem) -> ModuleItem {
+    match swc_module_item {
+        SwcModuleItem::ModuleDecl(module_decl)
+    }
 }
 
 pub(crate) const CRATE_NAME: &str = env!("CARGO_CRATE_NAME");
