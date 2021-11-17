@@ -1,7 +1,11 @@
 mod lit;
 
 use indexmap::IndexMap;
-use swc_ecma_ast::ModuleItem as SwcModuleItem;
+use swc_common::{Span};
+use swc_ecma_ast::{
+    ModuleItem as SwcModuleItem, ModuleDecl, ExportDecl, Decl, TsModuleDecl, TsModuleName,
+    Str
+};
 
 #[derive(Debug)]
 enum BasicType {
@@ -60,15 +64,34 @@ pub struct Module {
 }
 
 pub enum Error {
-    StructureNotSupported(swc_common::Span)
+    StructureNotSupported { begin: u32, end: u32 }
 }
+
+impl Error {
+    pub(crate) fn structure_not_supported(span: Span) -> Self {
+        Self::StructureNotSupported {
+            begin: span.lo.0, end: span.hi.0
+        }
+    }
+}
+
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-fn parse_ts_module_item(swc_module_item: SwcModuleItem) -> ModuleItem {
+fn parse_ts_module_item(swc_module_item: SwcModuleItem) -> Result<ModuleItem> {
     match swc_module_item {
-        SwcModuleItem::ModuleDecl(module_decl)
+        SwcModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, span: export_decl_span })) => {
+            match decl {
+                Decl::TsModule(ts_module_decl) => {
+                    match ts_module_decl.id {
+                        TsModuleName::Str(Str { span, ..}) => return Err(Error::structure_not_supported(span))
+                        TsModuleName::Ident(ident) => {}
+                    }
+                }
+            }
+        }
     }
+    todo!()
 }
 
 pub(crate) const CRATE_NAME: &str = env!("CARGO_CRATE_NAME");
@@ -87,7 +110,7 @@ mod tests {
 
         let fm = cm.new_source_file(
             FileName::Custom("[tser-input].ts".into()),
-            "namespace X { export interface A {} } ; export type B = X.Y.A;".into(),
+            "namespace XZZZ { export interface A {} } ; export type B = X.Y.A;".into(),
         );
         let mut parser = Parser::new(
             Syntax::Typescript(TsConfig::default()),
