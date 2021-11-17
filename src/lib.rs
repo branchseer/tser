@@ -14,11 +14,11 @@ struct TypeRef {
 }
 
 enum Type {
-    Type(BasicType),
+    Basic(BasicType),
     Lit(Lit),
     Ref(TypeRef),
-    Enum(Vec<Type>),
-    Tuple(Vec<Type>)
+    Union(Vec<Type>),
+    Tuple(Vec<Type>),
 }
 
 enum Lit {
