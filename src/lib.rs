@@ -4,6 +4,8 @@ use indexmap::IndexMap;
 use swc_common::{Span};
 use swc_ecma_ast::{
     ModuleItem as SwcModuleItem, ModuleDecl, ExportDecl, Decl, TsModuleDecl, TsModuleName,
+    TsModuleBlock,
+    TsNamespaceBody,
     Str
 };
 
@@ -53,9 +55,16 @@ enum Lit {
 
 #[derive(Debug)]
 enum ModuleItem {
-    Submodule { name: String, module: Module },
+    Submodule(Submodule),
     ConstValue { name: String, value: Lit },
     Type { name: String, ty: Type }
+}
+
+
+#[derive(Debug)]
+pub struct Submodule {
+    module_name: String,
+    module: Module,
 }
 
 #[derive(Debug)]
@@ -78,16 +87,31 @@ impl Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+fn parse_ts_sub_module(ts_module_decl: TsModuleDecl) -> Result<Submodule> {
+    let module_name = match ts_module_decl.id {
+        TsModuleName::Str(Str { span, ..}) => return Err(Error::structure_not_supported(ts_module_decl.span)),
+        TsModuleName::Ident(ident) => ident.sym.to_string(),
+    };
+    let mut swc_module_items = match ts_module_decl.body {
+        Some(TsNamespaceBody::TsModuleBlock(TsModuleBlock { span, body })) => {
+            body
+        },
+        _other => return Err(Error::structure_not_supported(ts_module_decl.span)),
+    };
+    let items = swc_module_items.drain(..).map(parse_ts_module_item).collect::<Result<Vec<ModuleItem>>>()?;
+    Ok(Submodule {
+        module_name, module: Module {
+            items
+        }
+    })
+}
+
 fn parse_ts_module_item(swc_module_item: SwcModuleItem) -> Result<ModuleItem> {
     match swc_module_item {
         SwcModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, span: export_decl_span })) => {
             match decl {
-                Decl::TsModule(ts_module_decl) => {
-                    match ts_module_decl.id {
-                        TsModuleName::Str(Str { span, ..}) => return Err(Error::structure_not_supported(span))
-                        TsModuleName::Ident(ident) => {}
-                    }
-                }
+                Decl::TsModule(ts_module_decl) => parse_ts_sub_module(ts_module_decl),
+
             }
         }
     }
