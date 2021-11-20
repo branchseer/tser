@@ -1,12 +1,14 @@
 mod lit;
+mod swc_utils;
+mod error;
 
 use indexmap::IndexMap;
-use swc_common::{Span};
+use swc_common::{Span, Spanned};
 use swc_ecma_ast::{
     ModuleItem as SwcModuleItem, ModuleDecl, ExportDecl, Decl, TsModuleDecl, TsModuleName,
     TsModuleBlock,
     TsNamespaceBody,
-    Str
+    Str, Stmt
 };
 
 #[derive(Debug)]
@@ -77,7 +79,8 @@ pub enum Error {
 }
 
 impl Error {
-    pub(crate) fn structure_not_supported(span: Span) -> Self {
+    pub(crate) fn structure_not_supported<S: Spanned>(s: &S) -> Self {
+        let span = s.span();
         Self::StructureNotSupported {
             begin: span.lo.0, end: span.hi.0
         }
@@ -89,14 +92,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 fn parse_ts_sub_module(ts_module_decl: TsModuleDecl) -> Result<Submodule> {
     let module_name = match ts_module_decl.id {
-        TsModuleName::Str(Str { span, ..}) => return Err(Error::structure_not_supported(ts_module_decl.span)),
+        TsModuleName::Str(str) => return Err(Error::structure_not_supported(&str)),
         TsModuleName::Ident(ident) => ident.sym.to_string(),
     };
     let mut swc_module_items = match ts_module_decl.body {
         Some(TsNamespaceBody::TsModuleBlock(TsModuleBlock { span, body })) => {
             body
         },
-        _other => return Err(Error::structure_not_supported(ts_module_decl.span)),
+        _other => return Err(Error::structure_not_supported(&ts_module_decl)),
     };
     let items = swc_module_items.drain(..).map(parse_ts_module_item).collect::<Result<Vec<ModuleItem>>>()?;
     Ok(Submodule {
@@ -108,14 +111,17 @@ fn parse_ts_sub_module(ts_module_decl: TsModuleDecl) -> Result<Submodule> {
 
 fn parse_ts_module_item(swc_module_item: SwcModuleItem) -> Result<ModuleItem> {
     match swc_module_item {
-        SwcModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, span: export_decl_span })) => {
+        SwcModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, .. })) => {
             match decl {
-                Decl::TsModule(ts_module_decl) => parse_ts_sub_module(ts_module_decl),
-
+                Decl::TsModule(ts_module_decl) => {
+                    let submodule = parse_ts_sub_module(ts_module_decl)?;
+                    Ok(ModuleItem::Submodule(submodule))
+                },
+                other => Err(Error::structure_not_supported(&other)),
             }
-        }
+        },
+        other => Err(Error::structure_not_supported(&other)),
     }
-    todo!()
 }
 
 pub(crate) const CRATE_NAME: &str = env!("CARGO_CRATE_NAME");
