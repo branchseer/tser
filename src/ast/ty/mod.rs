@@ -11,10 +11,10 @@ use swc_ecma_ast::{
 };
 
 impl<'a> ParsingContext<'a> {
-    fn get_type_params(&self, type_param_decl: TsTypeParamDecl) -> Result<Vec<String>> {
+    pub fn get_type_params(&self, type_param_decl: &TsTypeParamDecl) -> Result<Vec<String>> {
         type_param_decl
             .params
-            .into_iter()
+            .iter()
             .map(|param| {
                 if param.default.is_some() {
                     Err(self.default_type_param_error(&param))
@@ -82,31 +82,15 @@ impl<'a> ParsingContext<'a> {
                 Type::Union(union_elems.into())
             },
             TsType::TsTypeLit(ts_type_lit) => {
-                let props = ts_type_lit.members.iter().map(|member| match member {
-                    TsTypeElement::TsPropertySignature(ts_prop_signature) => {
-                        let key = match ts_prop_signature.key.as_ref() {
-                            Expr::Ident(ident) => ident.sym.to_string(),
-                            other => return Err(self.unexpected_spanned(other)),
-                        };
-                        let mut ts_type = match ts_prop_signature.type_ann.as_ref() {
-                            Some(type_ann) => self.parse_type(type_ann.type_ann.as_ref())?,
-                            None => return Err(self.unexpected_spanned(ts_prop_signature)),
-                        };
-                        if ts_prop_signature.optional {
-                            ts_type.make_optional();
-                        }
-                        Ok((key, ts_type))
-                    },
-                    _ => Err(self.unexpected_spanned(member))
-                }).collect::<Result<IndexMap<String, Type>>>()?;
-                Type::Interface(props.into())
+                let props = self.parse_type_elements(ts_type_lit.members.as_slice())?;
+                Type::Interface(props)
             }
             _ => return Err(self.unexpected_spanned(ty)),
         })
     }
     pub fn parse_type_alias(&self, type_alias_decl: TsTypeAliasDecl) -> Result<TypeDecl> {
         let name = type_alias_decl.id.sym.to_string();
-        let type_params = match type_alias_decl.type_params {
+        let type_params = match type_alias_decl.type_params.as_ref() {
             Some(some) => self.get_type_params(some)?,
             None => vec![],
         };

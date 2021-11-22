@@ -27,6 +27,8 @@ impl<'a> ParsingContext<'a> {
             }
         })
     }
+
+    // TODO: use smallvec in return type, as we usually return one ModuleItem
     fn parse_ts_module_item(&self, swc_module_item: SwcModuleItem) -> crate::Result<Vec<ModuleItem>> {
         match swc_module_item {
             SwcModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
@@ -40,7 +42,8 @@ impl<'a> ParsingContext<'a> {
                         Ok(vec![ModuleItem::Type(type_decl)])
                     },
                     Decl::TsInterface(ts_interface_decl) => {
-
+                        let interface_decl = self.parse_interface_decl(&ts_interface_decl)?;
+                        Ok(vec![ModuleItem::Type(interface_decl)])
                     },
                     _ => Err(self.unexpected_ast_node(&export_decl)),
                 }
