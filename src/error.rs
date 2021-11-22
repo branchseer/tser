@@ -3,46 +3,34 @@ use std::fmt::{Display, Formatter};
 use swc_common::{Span, Spanned, AstNode};
 
 #[derive(Debug)]
-pub enum Error {
-    StructureNotSupported {
-        name: &'static str,
-        line: u32,
-        col: u32,
-    },
+pub(crate) struct SourcePos {
+    pub line: u32,
+    pub col: u32
+}
+
+impl Display for SourcePos {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("line {}, column {}", self.line + 1, self.col + 1))
+    }
+}
+
+#[derive(Debug)]
+pub(crate) enum Kind {
+    StructureNotSupported(Option<&'static str>),
+    SwcParseError(swc_ecma_parser::error::SyntaxError),
+    DefaultTypeParamNotSupported(String),
+}
+
+#[derive(Debug)]
+pub struct Error {
+    pub(crate) pos: SourcePos,
+    pub(crate) kind: Kind
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::StructureNotSupported { name, line, col } => f.write_fmt(format_args!(
-                "structure not supported: {} at line {}, column {}",
-                *name, *line, *col
-            )),
-        }
+        std::fmt::Debug::fmt(self, f) // TODO: friendly error message
     }
 }
 
-pub(crate) struct ErrorFactory<'a> {
-    source: &'a str
-}
-
-impl ErrorFactory {
-    pub fn structure_not_supported<S: AstNode>(&self, s: &S) -> Error {
-        let idx = s.span().lo.0;
-        let mut col = idx;
-        let mut line = 0_u32;
-        for line_len in self.source.lines().map(|s|s.len() as u32) {
-            if col > line_len {
-                col -= line_len;
-                line += 1;
-            }
-            else {
-                break
-            }
-        }
-        Error::StructureNotSupported {
-            name: S::TYPE,
-            line, col
-        }
-    }
-}
+impl std::error::Error for Error { }

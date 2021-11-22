@@ -63,7 +63,7 @@ macro_rules! serde_lit {
                 D: ::serde::de::Deserializer<'de>,
             {
                 use ::std::borrow::Borrow;
-                $crate::lit::deserialize_lit(deserializer, Self::value().borrow())
+                $crate::serde_lit::deserialize_lit(deserializer, Self::value().borrow())
             }
         }
         impl $type_name {
