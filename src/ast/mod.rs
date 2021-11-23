@@ -54,7 +54,7 @@ pub enum Type {
     Array(Box<Type>),
     Map(Box<Type>),
     Interface(HashableIndexMap<String, Type>),
-    Unspecified // any or null
+    Unspecified // any or unknown
 }
 
 impl Type {
