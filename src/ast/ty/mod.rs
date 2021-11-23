@@ -1,8 +1,9 @@
 mod lit;
 mod interface;
+mod union;
 
 use indexmap::{IndexMap, IndexSet};
-use super::{BasicType, Lit, ParsingContext, Type, TypeDecl, TypeRef};
+use super::{BasicType, Lit, ParsingContext, Type, NonNullType, TypeDecl, TypeRef};
 use crate::Result;
 use swc_ecma_ast::{
     TsKeywordType, TsKeywordTypeKind, TsType,
@@ -24,16 +25,13 @@ impl<'a> ParsingContext<'a> {
             })
             .collect()
     }
-    fn parse_keyword_type(&self, keyword_type: &TsKeywordType) -> Result<Type> {
+    fn parse_keyword_type(&self, keyword_type: &TsKeywordType) -> Result<NonNullType> {
         Ok(match &keyword_type.kind {
-            TsKeywordTypeKind::TsBooleanKeyword => Type::Basic(BasicType::Boolean),
-            TsKeywordTypeKind::TsNumberKeyword => Type::Basic(BasicType::Number),
-            TsKeywordTypeKind::TsStringKeyword => Type::Basic(BasicType::String),
-            TsKeywordTypeKind::TsNullKeyword | TsKeywordTypeKind::TsUndefinedKeyword => {
-                Type::Lit(Lit::Null)
-            }
+            TsKeywordTypeKind::TsBooleanKeyword => NonNullType::Basic(BasicType::Boolean),
+            TsKeywordTypeKind::TsNumberKeyword => NonNullType::Basic(BasicType::Number),
+            TsKeywordTypeKind::TsStringKeyword => NonNullType::Basic(BasicType::String),
             TsKeywordTypeKind::TsAnyKeyword | TsKeywordTypeKind::TsUnknownKeyword => {
-                Type::Unspecified
+                NonNullType::Unspecified
             }
             _ => return Err(self.unexpected_ast_node(keyword_type)),
         })
@@ -56,19 +54,29 @@ impl<'a> ParsingContext<'a> {
     }
     pub fn parse_type(&self, ty: &TsType) -> Result<Type> {
         Ok(match ty {
-            TsType::TsKeywordType(keyword_type) => self.parse_keyword_type(keyword_type)?,
-            TsType::TsTypeRef(ts_type_ref) => Type::Ref(self.parse_type_ref(ts_type_ref)?),
-            TsType::TsLitType(ts_lit_type) => Type::Lit(self.parse_ts_lit(&ts_lit_type.lit)?),
-            TsType::TsArrayType(ts_array_type) => {
-                Type::Array(Box::new(self.parse_type(ts_array_type.elem_type.as_ref())?))
-            }
-            TsType::TsTupleType(ts_tuple_type) => Type::Tuple(
-                ts_tuple_type
+            TsType::TsKeywordType(keyword_type) => Type {
+                nullable: false, wrapped: self.parse_keyword_type(keyword_type)?,
+            },
+            TsType::TsTypeRef(ts_type_ref) => Type {
+                nullable: false, wrapped: NonNullType::Ref(self.parse_type_ref(ts_type_ref)?)
+            },
+            TsType::TsLitType(ts_lit_type) => Type {
+                nullable: false, wrapped: Type::Lit(self.parse_ts_lit(&ts_lit_type.lit)?)
+            },
+            TsType::TsArrayType(ts_array_type) => Type {
+                nullable: false,
+                wrapped: NonNullType::Array(Box::new(self.parse_type(ts_array_type.elem_type.as_ref())?))
+            },
+            TsType::TsTupleType(ts_tuple_type) => Type {
+                nullable: false,
+                wrapped: NonNullType::Tuple(
+                    ts_tuple_type
                     .elem_types
                     .iter()
-                    .map(|ts_tuple_elem| self.parse_type(&ts_tuple_elem.ty))
-                    .collect::<Result<Vec<Type>>>()?,
-            ),
+                    .map( | ts_tuple_elem| self.parse_type( & ts_tuple_elem.ty))
+                    .collect:: < Result<Vec<Type> > > () ?,
+                )
+            },
             // TsType::TsOptionalType(ts_optional_type) => {
             //     let mut ty = self.parse_type(ts_optional_type.type_ann.as_ref())?;
             //     ty.make_optional();

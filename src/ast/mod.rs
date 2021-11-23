@@ -44,7 +44,7 @@ pub enum EnumType {
 
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub enum Type {
+pub enum NonNullType {
     Basic(BasicType),
     Lit(Lit),
     Ref(TypeRef),
@@ -57,37 +57,43 @@ pub enum Type {
     Unspecified // any or unknown
 }
 
-impl Type {
-    fn union_add(&mut self, ty: Self) -> bool {
-        if let Type::Union(union_elems) = self {
-            union_elems.as_mut().insert(ty)
-        }
-        else {
-            let original_self = std::mem::replace(self, Type::Unspecified);
-            *self = Type::Union(indexset! { original_self, ty }.into());
-            true
-        }
-    }
-    fn union_remove(&mut self, ty: &Self) -> bool {
-        if let Type::Union(union_elems) = self {
-            let union_elems: &mut IndexSet<Type> = union_elems.as_mut();
-            if union_elems.remove(ty) {
-                if union_elems.len() == 1 {
-                    let single_elem = union_elems.pop().unwrap();
-                    *self = single_elem
-                }
-                return true
-            }
-        }
-        false
-    }
-    pub fn make_optional(&mut self) -> bool {
-        self.union_add(Type::Lit(Lit::Null))
-    }
-    pub fn make_non_optional(&mut self) -> bool {
-        self.union_remove(&Type::Lit(Lit::Null))
-    }
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub struct Type {
+    nullable: bool,
+    wrapped: NonNullType,
 }
+
+// impl Type {
+//     fn union_add(&mut self, ty: Self) -> bool {
+//         if let Type::Union(union_elems) = self {
+//             union_elems.as_mut().insert(ty)
+//         }
+//         else {
+//             let original_self = std::mem::replace(self, Type::Unspecified);
+//             *self = Type::Union(indexset! { original_self, ty }.into());
+//             true
+//         }
+//     }
+//     fn union_remove(&mut self, ty: &Self) -> bool {
+//         if let Type::Union(union_elems) = self {
+//             let union_elems: &mut IndexSet<Type> = union_elems.as_mut();
+//             if union_elems.remove(ty) {
+//                 if union_elems.len() == 1 {
+//                     let single_elem = union_elems.pop().unwrap();
+//                     *self = single_elem
+//                 }
+//                 return true
+//             }
+//         }
+//         false
+//     }
+//     pub fn make_optional(&mut self) -> bool {
+//         self.union_add(Type::Lit(Lit::Null))
+//     }
+//     pub fn make_non_optional(&mut self) -> bool {
+//         self.union_remove(&Type::Lit(Lit::Null))
+//     }
+// }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Lit {
