@@ -1,0 +1,33 @@
+{
+  "name": "tser-website",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^1.1.0",
+    "@tsconfig/svelte": "^3.0.0",
+    "svelte": "^3.52.0",
+    "svelte-check": "^2.9.2",
+    "svelte-preprocess": "^4.10.7",
+    "tslib": "^2.4.0",
+    "typescript": "^4.8.4",
+    "vite": "^3.2.0",
+    "vite-plugin-wasm": "^3.1.0"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.1.2",
+    "@codemirror/lang-javascript": "^6.1.1",
+    "@codemirror/lang-rust": "^6.0.1",
+    "@codemirror/language": "^6.3.0",
+    "@codemirror/legacy-modes": "^6.2.0",
+    "@codemirror/view": "^6.4.0",
+    "codemirror": "^6.0.1",
+    "water.css": "^2.1.1"
+  }
+}

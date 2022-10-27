@@ -1,0 +1,8 @@
+[workspace]
+
+members = [ "tser", "tser_codegen", "tser_ir", "tser_parser_ts", "tser_block", "tser_wasm"]
+
+
+[profile.release]
+# optimize for small code size.
+opt-level = "s"

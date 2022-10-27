@@ -1,0 +1,14 @@
+[package]
+name = "tser_parser_ts"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+swc_ecma_parser = "0.122.12"
+swc_common = "0.29.8"
+swc_ecma_ast = "0.94.11"
+tser_ir = { path = "../tser_ir" }
+anyhow = "1.0.66"
+
+[dev-dependencies]
+assert_matches = "1.5.0"

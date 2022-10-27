@@ -1,0 +1,11 @@
+[package]
+name = "tser"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tser_codegen = { path = "../tser_codegen" }
+tser_parser_ts = { path = "../tser_parser_ts" }
+anyhow = "1.0.66"
