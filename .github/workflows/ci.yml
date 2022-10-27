@@ -20,6 +20,8 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
       working-directory: crates
+    - name: Install wasm-pack
+      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
     - name: Build Website
       run: |
         npm ci
