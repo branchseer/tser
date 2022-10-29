@@ -20,15 +20,3 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
       working-directory: crates
-    - name: Install wasm-pack
-      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-    - name: Build Website
-      run: |
-        npm ci
-        ./ci_build.sh
-      working-directory: website
-    - name: Deploy Website
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: website/dist
