@@ -2,8 +2,11 @@ pub mod rust;
 pub mod swift;
 
 use tser_block::{block, flatten, Block};
-use tser_ir::type_decl::enm::EnumKind;
-use tser_ir::type_decl::{enm::Enum as IrEnum, st::Struct as IrStruct, union::Union as IrUnion};
+use tser_ir::type_decl::enum_::EnumKind;
+use tser_ir::type_decl::{
+    enum_::Enum as IrEnum, struct_::Struct as IrStruct, union::Union as IrUnion,
+    union::UnionKind as IrUnionKind,
+};
 use tser_ir::type_expr::{primitive::Primitive, TypeExpr, TypeExprKind};
 use tser_ir::File;
 
@@ -79,19 +82,44 @@ impl Enum {
     }
 }
 
+pub enum UnionKind {
+    ExternallyTagged(Vec<(String, String)>),
+    InternallyTagged {
+        tag_field: String,
+        variants: Vec<Struct>,
+    }
+}
+impl UnionKind {
+    fn from_ir(ir_union_kind: &IrUnionKind, code_gen: &dyn CodeGen) -> Self {
+        match ir_union_kind {
+            IrUnionKind::ExternallyTagged(variants) => Self::ExternallyTagged(
+                variants
+                    .iter()
+                    .map(|(name, type_expr)| {
+                        (name.clone(), type_expr_to_string(type_expr, code_gen))
+                    })
+                    .collect(),
+            ),
+            IrUnionKind::InternallyTagged(internally_tagged) => Self::InternallyTagged {
+                tag_field: internally_tagged.tag_field.clone(),
+                variants: internally_tagged.variants
+                    .iter()
+                    .map(|ir_struct| Struct::from_ir(ir_struct, code_gen))
+                    .collect(),
+            },
+        }
+    }
+}
+
 pub struct Union {
     pub name: String,
-    pub variants: Vec<Struct>,
+    pub kind: UnionKind,
 }
 impl Union {
     fn from_ir(ir_union: &IrUnion, code_gen: &dyn CodeGen) -> Self {
         Self {
             name: ir_union.name.to_string(),
-            variants: ir_union
-                .variants
-                .iter()
-                .map(|variant| Struct::from_ir(variant, code_gen))
-                .collect(),
+            kind: UnionKind::from_ir(&ir_union.kind, code_gen),
         }
     }
 }

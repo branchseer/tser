@@ -1,9 +1,9 @@
 use super::super::type_expr::parse_to_type_expr;
 use crate::error::StructureError;
 
-use crate::prop::parse_as_prop;
-use swc_ecma_ast::{TsInterfaceBody, TsInterfaceDecl};
-use tser_ir::type_decl::st::{Field, Struct};
+use crate::prop::{parse_as_prop, Prop};
+use swc_ecma_ast::{TsInterfaceBody, TsInterfaceDecl, TsTypeElement};
+use tser_ir::type_decl::struct_::{Field, Struct};
 
 pub fn parse_struct(ts_interface: &TsInterfaceDecl) -> Result<Struct, StructureError> {
     if let Some(type_params) = &ts_interface.type_params {
@@ -14,26 +14,14 @@ pub fn parse_struct(ts_interface: &TsInterfaceDecl) -> Result<Struct, StructureE
     }
     Ok(Struct {
         name: ts_interface.id.sym.to_string(),
-        fields: parse_ts_interface_body(&ts_interface.body)?,
+        fields: ts_interface
+            .body
+            .body
+            .iter()
+            .map(parse_as_prop)
+            .map(|prop_result| Field::try_from(prop_result?))
+            .collect::<Result<Vec<Field>, StructureError>>()?,
     })
-}
-
-fn parse_ts_interface_body(
-    ts_interface_body: &TsInterfaceBody,
-) -> Result<Vec<Field>, StructureError> {
-    ts_interface_body
-        .body
-        .as_slice()
-        .iter()
-        .map(|type_elemnnt| {
-            let prop = parse_as_prop(type_elemnnt)?;
-            Ok(Field {
-                name: prop.name,
-                optional: prop.optional,
-                ty: parse_to_type_expr(prop.ts_type)?,
-            })
-        })
-        .collect()
 }
 
 #[cfg(test)]

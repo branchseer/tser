@@ -13,7 +13,7 @@ impl TryFrom<Language> for tser::Language {
         Ok(match value {
             Language::Swift => tser::Language::Swift,
             Language::Rust => tser::Language::Rust,
-            other => return Err(format!("Invalid language: {}", other.to_str()))
+            other => return Err(format!("Invalid language: {}", other.to_str())),
         })
     }
 }

@@ -1,7 +1,7 @@
 use crate::error::StructureError;
 use swc_common::Spanned;
 use swc_ecma_ast::{Expr, Lit, Number, Str, TsEnumDecl, TsEnumMember, TsEnumMemberId};
-use tser_ir::type_decl::enm::{Enum, EnumKind, EnumValue};
+use tser_ir::type_decl::enum_::{Enum, EnumKind, EnumValue};
 
 enum AnyEnumValue {
     String(String),

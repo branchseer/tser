@@ -1,9 +1,9 @@
-pub mod enm;
-pub mod st;
+pub mod enum_;
+pub mod struct_;
 pub mod union;
 
-use enm::Enum;
-use st::Struct;
+use enum_::Enum;
+use struct_::Struct;
 use union::Union;
 
 pub enum TypeDecl {

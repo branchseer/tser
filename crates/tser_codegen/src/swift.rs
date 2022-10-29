@@ -1,6 +1,6 @@
-use tser_block::{Block, block};
-use tser_ir::type_expr::primitive::Primitive;
 use crate::{CodeGen, Enum, EnumValueType, Struct, Union};
+use tser_block::{block, Block};
+use tser_ir::type_expr::primitive::Primitive;
 
 pub struct SwiftCodeGen;
 
@@ -31,7 +31,8 @@ impl CodeGen for SwiftCodeGen {
             Primitive::String => "String",
             Primitive::Bool => "Bool",
             Primitive::Number => "Double",
-        }.to_string()
+        }
+        .to_string()
     }
 
     fn array_expr(&self, elem: &str) -> String {
@@ -45,7 +46,12 @@ impl CodeGen for SwiftCodeGen {
     fn struct_decl(&self, struct_: Struct) -> Block {
         block![
             format!("public struct {}: {} {{", ident(&struct_.name), PROTOCOLS),
-            block(struct_.fields.iter().map(|(name, ty)| format!("public var {}: {}", name, ty))),
+            block(
+                struct_
+                    .fields
+                    .iter()
+                    .map(|(name, ty)| format!("public var {}: {}", name, ty))
+            ),
             "}"
         ]
     }
@@ -56,11 +62,20 @@ impl CodeGen for SwiftCodeGen {
             EnumValueType::Integer => "Int64",
         };
         block![
-            format!("public enum {}: {}, {} {{", ident(&enum_.name), value_type, PROTOCOLS),
-            block(enum_.values.into_iter().map(|(name, val)| format!("case {} = {}", ident(&name), match enum_.value_type {
-                EnumValueType::Integer => val,
-                EnumValueType::String => quote(&val),
-            }))),
+            format!(
+                "public enum {}: {}, {} {{",
+                ident(&enum_.name),
+                value_type,
+                PROTOCOLS
+            ),
+            block(enum_.values.into_iter().map(|(name, val)| format!(
+                "case {} = {}",
+                ident(&name),
+                match enum_.value_type {
+                    EnumValueType::Integer => val,
+                    EnumValueType::String => quote(&val),
+                }
+            ))),
             "}"
         ]
     }

@@ -61,21 +61,14 @@ impl CodeGen for RustCodeGen {
                     .into_iter()
                     .map(|(name, val)| match enum_.value_type {
                         EnumValueType::Integer => format!("{} = {},", ident(&name), val),
-                        EnumValueType::String => format!("#[serde(rename = {})] {},", quote(&val), ident(&name)),
+                        EnumValueType::String =>
+                            format!("#[serde(rename = {})] {},", quote(&val), ident(&name)),
                     })
             ),
             "}"
         ]
     }
     fn union_decl(&self, union: Union) -> Block {
-        fn union_variant(_variant: Struct) -> Block {
-            unimplemented!()
-        }
-        block![
-            DERIVE_LINE,
-            format!("pub enum {} {{", union.name),
-            block(union.variants.into_iter().map(union_variant)),
-            "}",
-        ]
+        unimplemented!()
     }
 }
