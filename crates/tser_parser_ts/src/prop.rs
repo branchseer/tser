@@ -3,7 +3,7 @@ use crate::error::StructureError;
 use crate::type_expr::parse_to_type_expr;
 use swc_common::Spanned;
 use swc_ecma_ast::{Expr, TsPropertySignature, TsType, TsTypeElement};
-use tser_ir::type_decl::struct_::{Field};
+use tser_ir::type_decl::struct_::Field;
 
 pub struct Prop<'a> {
     pub name: String,

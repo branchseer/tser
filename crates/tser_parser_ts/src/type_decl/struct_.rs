@@ -1,8 +1,7 @@
-
 use crate::error::StructureError;
 
-use crate::prop::{parse_as_prop};
-use swc_ecma_ast::{TsInterfaceDecl};
+use crate::prop::parse_as_prop;
+use swc_ecma_ast::TsInterfaceDecl;
 use tser_ir::type_decl::struct_::{Field, Struct};
 
 pub fn parse_struct(ts_interface: &TsInterfaceDecl) -> Result<Struct, StructureError> {

@@ -104,10 +104,7 @@ mod tests {
     fn adjacently_tagged_simple() {
         let internally_tagged = InternallyTaggedUnionBody {
             tag_field: "t".to_string(),
-            variants: generate_struct_variants(&[
-                ("a", &["c"]),
-                ("b", &["c"]),
-            ])
+            variants: generate_struct_variants(&[("a", &["c"]), ("b", &["c"])]),
         };
         let adjacently_tagged = internally_tagged.as_adjacently_tagged().unwrap();
         assert_eq!(adjacently_tagged.tag_field, "t");
@@ -117,10 +114,7 @@ mod tests {
     fn adjacently_tagged_multiple_fields() {
         let internally_tagged = InternallyTaggedUnionBody {
             tag_field: "t".to_string(),
-            variants: generate_struct_variants(&[
-                ("a", &["c"]),
-                ("b", &["c", "b"]),
-            ])
+            variants: generate_struct_variants(&[("a", &["c"]), ("b", &["c", "b"])]),
         };
         assert_eq!(internally_tagged.as_adjacently_tagged(), None);
     }
@@ -128,10 +122,7 @@ mod tests {
     fn adjacently_tagged_different_field_names() {
         let internally_tagged = InternallyTaggedUnionBody {
             tag_field: "t".to_string(),
-            variants: generate_struct_variants(&[
-                ("a", &["c"]),
-                ("b", &["d"]),
-            ])
+            variants: generate_struct_variants(&[("a", &["c"]), ("b", &["d"])]),
         };
         assert_eq!(internally_tagged.as_adjacently_tagged(), None);
     }

@@ -87,7 +87,7 @@ pub enum UnionKind {
     InternallyTagged {
         tag_field: String,
         variants: Vec<Struct>,
-    }
+    },
 }
 impl UnionKind {
     fn from_ir(ir_union_kind: &IrUnionKind, code_gen: &dyn CodeGen) -> Self {
@@ -96,13 +96,17 @@ impl UnionKind {
                 variants
                     .iter()
                     .map(|variants| {
-                        (variants.name.clone(), type_expr_to_string(&variants.ty, code_gen))
+                        (
+                            variants.name.clone(),
+                            type_expr_to_string(&variants.ty, code_gen),
+                        )
                     })
                     .collect(),
             ),
             IrUnionKind::InternallyTagged(internally_tagged) => Self::InternallyTagged {
                 tag_field: internally_tagged.tag_field.clone(),
-                variants: internally_tagged.variants
+                variants: internally_tagged
+                    .variants
                     .iter()
                     .map(|ir_struct| Struct::from_ir(ir_struct, code_gen))
                     .collect(),
