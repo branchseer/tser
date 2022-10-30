@@ -196,7 +196,7 @@ mod tests {
     }
 
     #[test]
-    fn multiple_variants() {
+    fn internally_tagged() {
         assert_eq!(
             parse_src_as_union(
                 r"type Bar = { type: 'hello', val: number } |
@@ -241,20 +241,88 @@ mod tests {
         );
     }
 
+
     #[test]
-    fn single_variant() {
+    fn internally_tagged_different_tag_name() {
+        let error = parse_src_as_union(
+            r"type Bar = { a: 'hello', val: number } | { b: 'empty' }"
+        ).err().unwrap();
         assert_eq!(
-            parse_src_as_union("type Foo = { type: 'a' }").unwrap(),
+            error.message.unwrap(),
+            "The discriminator field has a different name from the previous one"
+        );
+        assert_eq!(error.span.lo.0, 41);
+        assert_eq!(error.span.hi.0, 55);
+    }
+
+    #[test]
+    fn internally_tagged_missing_tag_name() {
+        let error = parse_src_as_union(
+            r"type Bar = { a: 'hello', val: number } | { val: string }"
+        ).err().unwrap();
+        assert_eq!(
+            error.message.unwrap(),
+            "The discriminator field is missing"
+        );
+        assert_eq!(error.span.lo.0, 41);
+        assert_eq!(error.span.hi.0, 56);
+    }
+
+    #[test]
+    fn externally_tagged() {
+        assert_eq!(
+            parse_src_as_union("type Foo = { string: string } | { number: number }").unwrap(),
             Union {
                 name: "Foo".to_string(),
-                kind: UnionKind::InternallyTagged(InternallyTaggedUnionBody {
-                    tag_field: "type".to_string(),
-                    variants: vec![Struct {
-                        name: "a".to_string(),
-                        fields: vec![],
-                    }]
-                }),
+                kind: UnionKind::ExternallyTagged(vec! [
+                    ExternallyTaggedVariant {
+                        name: "string".to_string(),
+                        ty: TypeExpr { nullable: false, kind: TypeExprKind::Primitive(Primitive::String) }
+                    },
+                    ExternallyTaggedVariant {
+                        name: "number".to_string(),
+                        ty: TypeExpr { nullable: false, kind: TypeExprKind::Primitive(Primitive::Number) }
+                    },
+                ]),
             },
         );
+    }
+    #[test]
+    fn externally_tagged_optional() {
+        let err = parse_src_as_union("type Foo = { string: string } | { number?: number }").unwrap_err();
+        assert_eq!(err.message.unwrap(), "Field of externally tagged union variant must not be optional");
+        assert_eq!(err.span.lo.0, 34);
+        assert_eq!(err.span.hi.0, 49);
+    }
+    #[test]
+    fn externally_tagged_multiple_fields() {
+        let err = parse_src_as_union("type Foo = { string: string } | { number: number, foo: boolean }").err().unwrap();
+        assert_eq!(
+            err.message.unwrap(),
+            "Externally tagged union variant must contain exactly one field"
+        );
+        assert_eq!(err.span.lo.0, 32);
+        assert_eq!(err.span.hi.0, 64);
+    }
+    #[test]
+    fn externally_tagged_no_field() {
+        let err = parse_src_as_union("type Foo = { string: string } | { }").err().unwrap();
+        assert_eq!(
+            err.message.unwrap(),
+            "Externally tagged union variant must contain exactly one field"
+        );
+        assert_eq!(err.span.lo.0, 32);
+        assert_eq!(err.span.hi.0, 35);
+    }
+
+    #[test]
+    fn invalid_union_kind() {
+        let err = parse_src_as_union("type Foo = { foo: string, bar: number }").err().unwrap();
+        assert_eq!(
+            err.message.unwrap(),
+            "Externally tagged union variant must contain exactly one field"
+        );
+        assert_eq!(err.span.lo.0, 11);
+        assert_eq!(err.span.hi.0, 39);
     }
 }
