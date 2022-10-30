@@ -42,15 +42,15 @@ impl InternallyTaggedUnionBody {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct AdjacentlyTaggedUnionVariant {
-    optional: bool,
-    ty: TypeExpr,
+    pub optional: bool,
+    pub ty: TypeExpr,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct AdjacentlyTaggedUnionBody {
-    tag_field: String,
-    data_field: String,
-    variants: Vec<AdjacentlyTaggedUnionVariant>, // AdjacentlyTagged variant can be optional
+    pub tag_field: String,
+    pub data_field: String,
+    pub variants: Vec<AdjacentlyTaggedUnionVariant>, // AdjacentlyTagged variant can be optional
 }
 
 // Unlike struct_::Field, ExternallyTaggedVariant can't be optional

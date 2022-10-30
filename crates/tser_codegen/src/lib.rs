@@ -3,6 +3,7 @@ pub mod swift;
 
 use tser_block::{block, flatten, Block};
 use tser_ir::type_decl::enum_::EnumKind;
+use tser_ir::type_decl::union::AdjacentlyTaggedUnionBody as IrAdjacentlyTaggedUnionBody;
 use tser_ir::type_decl::{
     enum_::Enum as IrEnum, struct_::Struct as IrStruct, union::Union as IrUnion,
     union::UnionKind as IrUnionKind,
@@ -84,10 +85,43 @@ impl Enum {
 
 pub enum UnionKind {
     ExternallyTagged(Vec<(String, String)>),
-    InternallyTagged {
-        tag_field: String,
-        variants: Vec<Struct>,
-    },
+    InternallyTagged(InternallyTaggedUnionBody),
+}
+
+pub struct InternallyTaggedUnionBody {
+    pub tag_field: String,
+    pub variants: Vec<Struct>, // Struct::name is the value of tag_field
+    pub adjacently_tagged: Option<AdjacentlyTaggedUnionBody>,
+}
+
+pub struct AdjacentlyTaggedUnionVariant {
+    pub optional: bool,
+    pub ty: String,
+}
+
+pub struct AdjacentlyTaggedUnionBody {
+    pub tag_field: String,
+    pub data_field: String,
+    pub variants: Vec<AdjacentlyTaggedUnionVariant>,
+}
+impl AdjacentlyTaggedUnionBody {
+    fn from_ir(
+        ir_adjacently_tagged_union_body: &IrAdjacentlyTaggedUnionBody,
+        code_gen: &dyn CodeGen,
+    ) -> Self {
+        Self {
+            tag_field: ir_adjacently_tagged_union_body.tag_field.clone(),
+            data_field: ir_adjacently_tagged_union_body.data_field.clone(),
+            variants: ir_adjacently_tagged_union_body
+                .variants
+                .iter()
+                .map(|variant| AdjacentlyTaggedUnionVariant {
+                    optional: variant.optional,
+                    ty: type_expr_to_string(&variant.ty, code_gen),
+                })
+                .collect(),
+        }
+    }
 }
 impl UnionKind {
     fn from_ir(ir_union_kind: &IrUnionKind, code_gen: &dyn CodeGen) -> Self {
@@ -103,14 +137,21 @@ impl UnionKind {
                     })
                     .collect(),
             ),
-            IrUnionKind::InternallyTagged(internally_tagged) => Self::InternallyTagged {
-                tag_field: internally_tagged.tag_field.clone(),
-                variants: internally_tagged
-                    .variants
-                    .iter()
-                    .map(|ir_struct| Struct::from_ir(ir_struct, code_gen))
-                    .collect(),
-            },
+            IrUnionKind::InternallyTagged(internally_tagged) => {
+                Self::InternallyTagged(InternallyTaggedUnionBody {
+                    tag_field: internally_tagged.tag_field.clone(),
+                    variants: internally_tagged
+                        .variants
+                        .iter()
+                        .map(|ir_struct| Struct::from_ir(ir_struct, code_gen))
+                        .collect(),
+                    adjacently_tagged: internally_tagged.as_adjacently_tagged().map(
+                        |ir_adjacently_tagged| {
+                            AdjacentlyTaggedUnionBody::from_ir(&ir_adjacently_tagged, code_gen)
+                        },
+                    ),
+                })
+            }
         }
     }
 }
