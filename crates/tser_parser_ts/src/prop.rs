@@ -3,7 +3,7 @@ use crate::error::StructureError;
 use crate::type_expr::parse_to_type_expr;
 use swc_common::Spanned;
 use swc_ecma_ast::{Expr, TsPropertySignature, TsType, TsTypeElement};
-use tser_ir::type_decl::struct_::Field;
+use tser_ir::type_decl::struct_::{Field};
 
 pub struct Prop<'a> {
     pub name: String,
@@ -12,11 +12,11 @@ pub struct Prop<'a> {
     pub ts_type_element: &'a TsTypeElement,
 }
 
-impl<'a> TryFrom<Prop<'a>> for Field {
+impl<'a> TryFrom<&'a Prop<'a>> for Field {
     type Error = StructureError;
-    fn try_from(prop: Prop) -> Result<Self, Self::Error> {
+    fn try_from(prop: &Prop) -> Result<Self, Self::Error> {
         Ok(Field {
-            name: prop.name,
+            name: prop.name.clone(),
             optional: prop.optional,
             ty: parse_to_type_expr(prop.ts_type)?,
         })
@@ -29,7 +29,7 @@ pub fn parse_as_prop(ts_type_element: &TsTypeElement) -> Result<Prop, StructureE
             TsPropertySignature {
                 key,
                 params,
-                init: Option::None,
+                init: None,
                 computed: false,
                 optional,
                 type_ann: Some(type_ann),

@@ -1,9 +1,8 @@
 use super::super::error::StructureError;
 use crate::prop::{parse_as_prop, Prop};
 use crate::type_expr::parse_to_type_expr;
-use crate::UNION_DISCRIMINATION_FIELD;
-use std::process::id;
-use swc_common::Spanned;
+
+use swc_common::{Span, Spanned};
 use tser_ir::type_decl::{
     struct_::Field,
     struct_::Struct,
@@ -11,9 +10,9 @@ use tser_ir::type_decl::{
 };
 
 use swc_ecma_ast::{
-    TsLit, TsLitType, TsType, TsTypeAliasDecl, TsTypeLit, TsUnionOrIntersectionType,
+    TsLit, TsLitType, TsType, TsTypeAliasDecl, TsUnionOrIntersectionType,
 };
-use tser_ir::type_decl::union::InternallyTaggedUnionBody;
+use tser_ir::type_decl::union::{ExternallyTaggedVariant, InternallyTaggedUnionBody};
 
 fn traverse_ts_union_variants<E>(
     ts_type: &TsType,
@@ -32,75 +31,78 @@ fn traverse_ts_union_variants<E>(
     }
 }
 
-struct DiscriminatorField {
-    name: String,
-    value: String,
+fn try_get_externally_tagged_variant(members: &[Prop], span: Span) -> Result<ExternallyTaggedVariant, StructureError> {
+    if members.len() != 1 {
+        return Err(StructureError::new(span, "Externally tagged union variant must contain exactly one field"))
+    }
+    let prop = &members[0];
+    if prop.optional {
+        return Err(StructureError::new(prop.ts_type_element.span(), "Field of externally tagged union variant must not be optional"))
+    }
+    Ok(ExternallyTaggedVariant {
+        name: prop.name.to_string(),
+        ty: parse_to_type_expr(prop.ts_type)?
+    })
 }
-fn try_parse_discriminator_field(
-    prop: &Prop,
-) -> Option<Result<DiscriminatorField, StructureError>> {
-    if let TsType::TsLitType(TsLitType {
-        lit: TsLit::Str(lit_str),
-        ..
-    }) = prop.ts_type
-    {
-        if prop.optional {
-            return Some(Err(StructureError::new(
-                prop.ts_type_element.span(),
-                "Union discriminator field must not be optional",
-            )));
+
+fn try_get_internally_tagged_variant(members: &mut Vec<Prop>) -> Result<Option<(String, Struct)>, StructureError> {
+    struct DiscriminatorField {
+        name: String,
+        value: String,
+    }
+    fn find_and_remove_discriminator_field(props: &mut Vec<Prop>) -> Result<Option<DiscriminatorField>, StructureError> {
+        for (idx, prop) in props.iter_mut().enumerate() {
+            if let TsType::TsLitType(TsLitType {
+                                         lit: TsLit::Str(lit_str),
+                                         ..
+                                     }) = prop.ts_type
+            {
+                if prop.optional {
+                    return Err(StructureError::new(
+                        prop.ts_type_element.span(),
+                        "Union discriminator field must not be optional",
+                    ));
+                }
+                let df = DiscriminatorField {
+                    name: prop.name.to_string(),
+                    value: lit_str.value.to_string(),
+                };
+                props.remove(idx);
+                return Ok(Some(df))
+            }
         }
-        Some(Ok(DiscriminatorField {
-            name: prop.name.to_string(),
-            value: lit_str.value.to_string(),
-        }))
-    } else {
-        None
+        Ok(None)
+    }
+    match find_and_remove_discriminator_field(members)? {
+        Some(discriminator_field) => {
+            // internally tagged, like { type: "...", ... } | { type: "...", ... }
+            let fields = members
+                .iter()
+                .map(Field::try_from)
+                .collect::<Result<Vec<Field>, StructureError>>()?;
+            Ok(Some((discriminator_field.name, Struct {
+                name: discriminator_field.value,
+                fields,
+            })))
+        }
+        None => Ok(None),
     }
 }
 
-// fn find_map_and_remove<Item, Mapped, F: FnMut(&mut Item) -> Option<Mapped>>(vec: &mut Vec<Item>, f: F) {
-//     let iter_result = for (idx, item) in vec.iter_mut().enumerate() {
-//         match f(item) {
-//             Some(mapped) => break (idx, mapped),
-//             None => continue
-//         }
-//     };
-// }
 
-fn parse_union_kind(ts_type_lit: &TsTypeLit) -> Result<UnionKind, StructureError> {
-    let mut members = ts_type_lit
-        .members
-        .iter()
-        .map(parse_as_prop)
-        .collect::<Result<Vec<Prop>, StructureError>>()?;
-
-    // Try find discriminator_field
-    let discriminator_field_with_idx = members
-        .iter()
-        .enumerate()
-        .find_map(|(idx, member)| Some(try_parse_discriminator_field(member)?.map(|df| (idx, df))))
-        .transpose()?;
-
-    match discriminator_field_with_idx {
-        Some((idx, discriminator_field)) => {
-            // { type: "...", ... }
-            members.remove(idx); // Exclude the discriminated field from members
-            let tag_field = discriminator_field.name;
-            let variant_fields = members
-                .into_iter()
-                .map(Field::try_from)
-                .collect::<Result<Vec<Field>, StructureError>>()?;
-            let variant_struct = Struct {
-                name: discriminator_field.value,
-                fields: variant_fields,
-            };
+fn detect_union_kind(mut members: Vec<Prop>, span: Span) -> Result<UnionKind, StructureError> {
+    // Try finding discriminator field
+    match try_get_internally_tagged_variant(&mut members)? {
+        Some((tag_field, variant)) => {
+            // internally tagged, like { type: "...", ... } | { type: "...", ... }
             Ok(UnionKind::InternallyTagged(InternallyTaggedUnionBody {
-                tag_field, variants: vec![variant_struct]
+                tag_field, variants: vec![variant]
             }))
         }
         None => {
-            todo!()
+            // externally tagged, like { "foo": string } | { "bar": number }
+            let variant = try_get_externally_tagged_variant(&members, span)?;
+            Ok(UnionKind::ExternallyTagged(vec![variant]))
         }
     }
 }
@@ -111,52 +113,43 @@ pub fn parse_union(type_alias_decl: &TsTypeAliasDecl) -> Result<Union, Structure
     }
 
     let name = type_alias_decl.id.sym.to_string();
-    let mut variants: Vec<Struct> = vec![];
+
+    let mut kind: Option<UnionKind> = None;
 
     traverse_ts_union_variants(
         type_alias_decl.type_ann.as_ref(),
-        &mut |ts_type| match ts_type {
-            TsType::TsTypeLit(ts_type_lit) => {
-                let mut variant_name: Option<String> = None;
-                let mut fields: Vec<Field> = vec![];
-                for member in &ts_type_lit.members {
-                    let prop = parse_as_prop(member)?;
-                    if prop.name == UNION_DISCRIMINATION_FIELD {
-                        if prop.optional {
-                            return Err(member.span().into());
-                        }
-                        if variant_name.is_some() {
-                            return Err(member.span().into());
-                        }
-                        match prop.ts_type {
-                            TsType::TsLitType(TsLitType {
-                                lit: TsLit::Str(lit_str),
-                                ..
-                            }) => variant_name = Some(lit_str.value.to_string()),
-                            other => return Err(other.span().into()),
-                        }
-                    } else {
-                        let field_type_expr = parse_to_type_expr(prop.ts_type)?;
-                        fields.push(Field {
-                            name: prop.name,
-                            optional: prop.optional,
-                            ty: field_type_expr,
-                        })
+        &mut |ts_type| {
+            let ts_type_lit =  match ts_type {
+                TsType::TsTypeLit(ts_type_lit) => ts_type_lit,
+                other => return Err(StructureError::from(other.span())),
+            };
+            let mut members = ts_type_lit.members.iter().map(parse_as_prop).collect::<Result<Vec<Prop>, StructureError>>()?;
+            match &mut kind {
+                None => { // Using the first union member to detect union kind
+                    kind = Some(detect_union_kind(members, ts_type_lit.span)?)
+                },
+                Some(UnionKind::InternallyTagged(internally_tagged)) => {
+                    let (tag_field, variant) = match try_get_internally_tagged_variant(&mut members)? {
+                        Some(some) => some,
+                        None => return Err(StructureError::new(ts_type_lit.span, "The discriminator field is missing"))
+                    };
+                    if tag_field != internally_tagged.tag_field {
+                        return Err(StructureError::new(ts_type_lit.span, "The discriminator field has a different name from the previous one"))
                     }
-                }
-                let variant_name =
-                    variant_name.ok_or_else(|| StructureError::from(ts_type_lit.span()))?;
-                variants.push(Struct {
-                    name: variant_name,
-                    fields,
-                });
-                Ok(())
-            }
-            other => Err(StructureError::from(other.span())),
+                    internally_tagged.variants.push(variant)
+                },
+                Some(UnionKind::ExternallyTagged(externally_tagged_variants)) => {
+                    let variant = try_get_externally_tagged_variant(&members, ts_type_lit.span)?;
+                    externally_tagged_variants.push(variant);
+                },
+            };
+            Ok(())
         },
     )?;
-    todo!()
-    // Ok(Union { name, variants })
+     match kind {
+        None =>  Err(StructureError::new(type_alias_decl.type_ann.span(), "Union must have at least one variant")),
+        Some(kind) => Ok(Union { name, kind })
+    }
 }
 
 #[cfg(test)]

@@ -1,8 +1,8 @@
-use super::super::type_expr::parse_to_type_expr;
+
 use crate::error::StructureError;
 
-use crate::prop::{parse_as_prop, Prop};
-use swc_ecma_ast::{TsInterfaceBody, TsInterfaceDecl, TsTypeElement};
+use crate::prop::{parse_as_prop};
+use swc_ecma_ast::{TsInterfaceDecl};
 use tser_ir::type_decl::struct_::{Field, Struct};
 
 pub fn parse_struct(ts_interface: &TsInterfaceDecl) -> Result<Struct, StructureError> {
@@ -19,7 +19,7 @@ pub fn parse_struct(ts_interface: &TsInterfaceDecl) -> Result<Struct, StructureE
             .body
             .iter()
             .map(parse_as_prop)
-            .map(|prop_result| Field::try_from(prop_result?))
+            .map(|prop_result| Field::try_from(&prop_result?))
             .collect::<Result<Vec<Field>, StructureError>>()?,
     })
 }

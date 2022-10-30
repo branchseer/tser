@@ -68,7 +68,7 @@ impl CodeGen for RustCodeGen {
             "}"
         ]
     }
-    fn union_decl(&self, union: Union) -> Block {
+    fn union_decl(&self, _union: Union) -> Block {
         unimplemented!()
     }
 }

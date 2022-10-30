@@ -95,8 +95,8 @@ impl UnionKind {
             IrUnionKind::ExternallyTagged(variants) => Self::ExternallyTagged(
                 variants
                     .iter()
-                    .map(|(name, type_expr)| {
-                        (name.clone(), type_expr_to_string(type_expr, code_gen))
+                    .map(|variants| {
+                        (variants.name.clone(), type_expr_to_string(&variants.ty, code_gen))
                     })
                     .collect(),
             ),

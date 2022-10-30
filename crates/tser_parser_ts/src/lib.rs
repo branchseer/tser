@@ -72,7 +72,6 @@ fn ts_parser_from_source<'a>(source: &'a str) -> Parser<Lexer<StringInput<'a>>> 
 }
 
 // const ASYNC_ITERABLE: &str = "AsyncIterable";
-const UNION_DISCRIMINATION_FIELD: &str = "type";
 
 pub fn parse_file(source: &str) -> anyhow::Result<File> {
     let mut parser = ts_parser_from_source(source);
